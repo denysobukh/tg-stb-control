@@ -5,6 +5,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import asyncssh
 from aiohttp import web
@@ -39,6 +40,7 @@ MIKROTIK_SSH_KEY = os.environ["MIKROTIK_SSH_KEY"]
 
 SCHEDULER_NAME = os.getenv("SCHEDULER_NAME", "stb-timer-autooff")
 ROUTEROS_DATE_FORMAT = os.getenv("ROUTEROS_DATE_FORMAT", "iso")
+ROUTER_TIMEZONE = os.getenv("ROUTER_TIMEZONE", "").strip()
 DRY_RUN = os.getenv("DRY_RUN", "false").lower() in {"1", "true", "yes", "on"}
 
 bot = Bot(BOT_TOKEN)
@@ -113,6 +115,20 @@ def routeros_date(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%d")
 
 
+def router_now() -> datetime:
+    if not ROUTER_TIMEZONE:
+        return datetime.now().astimezone()
+
+    try:
+        return datetime.now(ZoneInfo(ROUTER_TIMEZONE))
+    except ZoneInfoNotFoundError as e:
+        raise RuntimeError(f"Invalid ROUTER_TIMEZONE: {ROUTER_TIMEZONE}") from e
+
+
+def router_timezone_label() -> str:
+    return ROUTER_TIMEZONE or datetime.now().astimezone().tzname() or "local time"
+
+
 async def schedule_off_after(minutes: int) -> datetime:
     """
     Keep the actual auto-off on MikroTik.
@@ -125,7 +141,7 @@ async def schedule_off_after(minutes: int) -> datetime:
     await ros(f'/system scheduler remove [find name="{SCHEDULER_NAME}"]')
     await ros("/system script run stbon")
 
-    off_at = datetime.now() + timedelta(minutes=minutes)
+    off_at = router_now() + timedelta(minutes=minutes)
     start_date = routeros_date(off_at)
     start_time = off_at.strftime("%H:%M:%S")
 
@@ -258,7 +274,7 @@ async def timer_cmd(message: Message) -> None:
         off_at = await schedule_off_after(minutes)
         await message.answer(
             f"TV is on for {minutes} minutes. "
-            f"Scheduled to turn off at {off_at:%Y-%m-%d %H:%M:%S}"
+            f"Scheduled to turn off at {off_at:%Y-%m-%d %H:%M:%S} {router_timezone_label()}"
         )
     except ValueError as e:
         await message.answer(str(e))
