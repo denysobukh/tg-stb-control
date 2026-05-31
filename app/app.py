@@ -132,7 +132,7 @@ async def schedule_off_after(minutes: int) -> datetime:
     # User input is validated as int. Scheduler name is controlled by env.
     on_event = (
         f'/system script run stboff; '
-        f'/system scheduler remove [find name="{SCHEDULER_NAME}"]'
+        f'/system scheduler remove [find name=\\"{SCHEDULER_NAME}\\"]'
     )
 
     await ros(
