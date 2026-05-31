@@ -50,22 +50,22 @@ router = Router()
 COMMAND_KEYBOARD = ReplyKeyboardMarkup(
     keyboard=[
         [
-            KeyboardButton(text="/tvon"),
-            KeyboardButton(text="/tvoff"),
-            KeyboardButton(text="/status"),
+            KeyboardButton(text="TV On"),
+            KeyboardButton(text="TV Off"),
+            KeyboardButton(text="Status"),
         ],
         [
-            KeyboardButton(text="/timer5"),
-            KeyboardButton(text="/timer15"),
-            KeyboardButton(text="/timer30"),
+            KeyboardButton(text="5 min"),
+            KeyboardButton(text="15 min"),
+            KeyboardButton(text="30 min"),
         ],
         [
-            KeyboardButton(text="/timer45"),
-            KeyboardButton(text="/timer60"),
-            KeyboardButton(text="/timer90"),
+            KeyboardButton(text="45 min"),
+            KeyboardButton(text="60 min"),
+            KeyboardButton(text="90 min"),
         ],
         [
-            KeyboardButton(text="/help"),
+            KeyboardButton(text="Help"),
         ],
     ],
     resize_keyboard=True,
@@ -229,6 +229,19 @@ async def read_timer_status() -> str | None:
     return output or None
 
 
+def timer_minutes_from_text(text: str) -> int:
+    text = text.strip()
+
+    if text.startswith("/timer"):
+        return int(text.removeprefix("/timer"))
+
+    if text.endswith(" min"):
+        return int(text.removesuffix(" min"))
+
+    raise ValueError("Timer command must be /timerXX or one of the timer buttons")
+
+
+@router.message(F.text == "Help")
 @router.message(Command("start", "help"))
 async def help_cmd(message: Message) -> None:
     if await deny_if_needed(message):
@@ -244,6 +257,7 @@ async def help_cmd(message: Message) -> None:
     )
 
 
+@router.message(F.text == "TV On")
 @router.message(Command("tvon"))
 async def tvon_cmd(message: Message) -> None:
     if await deny_if_needed(message):
@@ -257,6 +271,7 @@ async def tvon_cmd(message: Message) -> None:
         await message.answer(f"Failed to turn TV on: {e}", reply_markup=COMMAND_KEYBOARD)
 
 
+@router.message(F.text == "TV Off")
 @router.message(Command("tvoff"))
 async def tvoff_cmd(message: Message) -> None:
     if await deny_if_needed(message):
@@ -270,6 +285,7 @@ async def tvoff_cmd(message: Message) -> None:
         await message.answer(f"Failed to turn TV off: {e}", reply_markup=COMMAND_KEYBOARD)
 
 
+@router.message(F.text == "Status")
 @router.message(Command("status"))
 async def status_cmd(message: Message) -> None:
     if await deny_if_needed(message):
@@ -291,13 +307,14 @@ async def status_cmd(message: Message) -> None:
         await message.answer(f"Failed to read status: {e}", reply_markup=COMMAND_KEYBOARD)
 
 
+@router.message(F.text.regexp(r"^\d+ min$"))
 @router.message(F.text.regexp(r"^/timer\d+$"))
 async def timer_cmd(message: Message) -> None:
     if await deny_if_needed(message):
         return
 
     text = message.text or ""
-    minutes = int(text.removeprefix("/timer"))
+    minutes = timer_minutes_from_text(text)
 
     try:
         off_at = await schedule_off_after(minutes)
