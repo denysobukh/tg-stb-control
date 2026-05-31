@@ -11,7 +11,7 @@ import asyncssh
 from aiohttp import web
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from dotenv import load_dotenv
 
@@ -46,6 +46,31 @@ DRY_RUN = os.getenv("DRY_RUN", "false").lower() in {"1", "true", "yes", "on"}
 bot = Bot(BOT_TOKEN)
 dp = Dispatcher()
 router = Router()
+
+COMMAND_KEYBOARD = ReplyKeyboardMarkup(
+    keyboard=[
+        [
+            KeyboardButton(text="/tvon"),
+            KeyboardButton(text="/tvoff"),
+            KeyboardButton(text="/status"),
+        ],
+        [
+            KeyboardButton(text="/timer5"),
+            KeyboardButton(text="/timer15"),
+            KeyboardButton(text="/timer30"),
+        ],
+        [
+            KeyboardButton(text="/timer45"),
+            KeyboardButton(text="/timer60"),
+            KeyboardButton(text="/timer90"),
+        ],
+        [
+            KeyboardButton(text="/help"),
+        ],
+    ],
+    resize_keyboard=True,
+    input_field_placeholder="Choose a TV command",
+)
 
 
 def is_allowed(message: Message) -> bool:
@@ -214,7 +239,8 @@ async def help_cmd(message: Message) -> None:
         "/tvon - turn TV on\n"
         "/tvoff - turn TV off\n"
         "/status - show current status\n"
-        "/timer30 - turn TV on and schedule off after 30 minutes"
+        "/timer5, /timer15, /timer30, /timer45, /timer60, /timer90 - turn TV on and schedule off later",
+        reply_markup=COMMAND_KEYBOARD,
     )
 
 
@@ -225,10 +251,10 @@ async def tvon_cmd(message: Message) -> None:
 
     try:
         await tv_on()
-        await message.answer("TV is on; nothing scheduled")
+        await message.answer("TV is on; nothing scheduled", reply_markup=COMMAND_KEYBOARD)
     except Exception as e:
         log.exception("Failed to turn TV on")
-        await message.answer(f"Failed to turn TV on: {e}")
+        await message.answer(f"Failed to turn TV on: {e}", reply_markup=COMMAND_KEYBOARD)
 
 
 @router.message(Command("tvoff"))
@@ -238,10 +264,10 @@ async def tvoff_cmd(message: Message) -> None:
 
     try:
         await tv_off()
-        await message.answer("TV is off; nothing scheduled")
+        await message.answer("TV is off; nothing scheduled", reply_markup=COMMAND_KEYBOARD)
     except Exception as e:
         log.exception("Failed to turn TV off")
-        await message.answer(f"Failed to turn TV off: {e}")
+        await message.answer(f"Failed to turn TV off: {e}", reply_markup=COMMAND_KEYBOARD)
 
 
 @router.message(Command("status"))
@@ -254,12 +280,15 @@ async def status_cmd(message: Message) -> None:
         timer = await read_timer_status()
 
         if timer:
-            await message.answer(f"TV is {status}; scheduled to turn off at {timer}")
+            await message.answer(
+                f"TV is {status}; scheduled to turn off at {timer}",
+                reply_markup=COMMAND_KEYBOARD,
+            )
         else:
-            await message.answer(f"TV is {status}; nothing scheduled")
+            await message.answer(f"TV is {status}; nothing scheduled", reply_markup=COMMAND_KEYBOARD)
     except Exception as e:
         log.exception("Failed to read status")
-        await message.answer(f"Failed to read status: {e}")
+        await message.answer(f"Failed to read status: {e}", reply_markup=COMMAND_KEYBOARD)
 
 
 @router.message(F.text.regexp(r"^/timer\d+$"))
@@ -274,13 +303,14 @@ async def timer_cmd(message: Message) -> None:
         off_at = await schedule_off_after(minutes)
         await message.answer(
             f"TV is on for {minutes} minutes. "
-            f"Scheduled to turn off at {off_at:%Y-%m-%d %H:%M:%S} {router_timezone_label()}"
+            f"Scheduled to turn off at {off_at:%Y-%m-%d %H:%M:%S} {router_timezone_label()}",
+            reply_markup=COMMAND_KEYBOARD,
         )
     except ValueError as e:
-        await message.answer(str(e))
+        await message.answer(str(e), reply_markup=COMMAND_KEYBOARD)
     except Exception as e:
         log.exception("Failed to set timer")
-        await message.answer(f"Failed to set timer: {e}")
+        await message.answer(f"Failed to set timer: {e}", reply_markup=COMMAND_KEYBOARD)
 
 
 @router.message()
@@ -288,7 +318,10 @@ async def fallback(message: Message) -> None:
     if await deny_if_needed(message):
         return
 
-    await message.answer("Unknown command. Use /tvon, /tvoff, /status, or /timer30")
+    await message.answer(
+        "Unknown command. Use /tvon, /tvoff, /status, /timer30, or /help",
+        reply_markup=COMMAND_KEYBOARD,
+    )
 
 
 async def on_startup(bot: Bot) -> None:
