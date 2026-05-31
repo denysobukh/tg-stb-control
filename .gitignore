@@ -7,6 +7,7 @@ __pycache__/
 .env
 .env.*
 !.env.example
+MIGRATION_CONTEXT.md
 
 # SSH keys
 .ssh/
@@ -19,3 +20,4 @@ id_ed25519*
 .DS_Store
 .idea/
 .vscode/
+
