@@ -1,2 +1,21 @@
-.ssh/
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Local secrets
 .env
+.env.*
+!.env.example
+
+# SSH keys
+.ssh/
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/

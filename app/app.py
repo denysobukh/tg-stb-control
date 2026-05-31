@@ -67,11 +67,11 @@ async def ros(command: str) -> str:
     Use a dedicated low-privilege MikroTik user.
     Avoid passing unvalidated user input into this function.
     """
-    log.info("RouterOS command: %s", command)
-
     if DRY_RUN:
-        log.warning("DRY_RUN enabled; RouterOS command was not executed: %s", command)
+        log.warning("DRY_RUN: would execute RouterOS command: %s", command)
         return ""
+
+    log.info("RouterOS command: %s", command)
 
     async with asyncssh.connect(
         MIKROTIK_HOST,
@@ -153,10 +153,7 @@ async def read_tv_status() -> str:
     firewall rules with comment=block-stb enabled => TV off;
     if any of them is disabled => TV on.
     """
-    if DRY_RUN:
-        return "dry-run"
-
-    output = await ros(
+    command = (
         ':local allEnabled true; '
         ':foreach rule in=[/ip firewall filter find comment="block-stb"] do={ '
         ':if ([/ip firewall filter get $rule disabled]) do={ :set allEnabled false } '
@@ -164,19 +161,28 @@ async def read_tv_status() -> str:
         ':if ($allEnabled) do={ :put "off" } else={ :put "on" }'
     )
 
+    if DRY_RUN:
+        await ros(command)
+        return "dry-run"
+
+    output = await ros(command)
+
     return output.strip().splitlines()[-1] if output else "unknown"
 
 
 async def read_timer_status() -> str | None:
-    if DRY_RUN:
-        return None
-
-    output = await ros(
+    command = (
         f':local sched [/system scheduler find name="{SCHEDULER_NAME}"]; '
         f':if ([:len $sched] > 0) do={{ '
         f':put ([/system scheduler get $sched start-date] . " " . [/system scheduler get $sched start-time]) '
         f'}}'
     )
+
+    if DRY_RUN:
+        await ros(command)
+        return None
+
+    output = await ros(command)
 
     output = output.strip()
     return output or None
