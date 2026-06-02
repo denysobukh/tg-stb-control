@@ -190,16 +190,19 @@ async def schedule_off_after(minutes: int) -> datetime:
 
 async def read_tv_status() -> str:
     """
-    Current logic copied from your RouterOS script:
-    firewall rules with comment=block-stb enabled => TV off;
+    Match the RouterOS control scripts:
+    address-list entries with comment=block-stb enabled => TV off;
     if any of them is disabled => TV on.
     """
     command = (
         ':local allEnabled true; '
-        ':foreach rule in=[/ip firewall filter find comment="block-stb"] do={ '
-        ':if ([/ip firewall filter get $rule disabled]) do={ :set allEnabled false } '
+        ':local entries [/ip firewall address-list find comment="block-stb"]; '
+        ':if ([:len $entries] = 0) do={ :put "unknown" } else={ '
+        ':foreach entry in=$entries do={ '
+        ':if ([/ip firewall address-list get $entry disabled]) do={ :set allEnabled false } '
         '}; '
-        ':if ($allEnabled) do={ :put "off" } else={ :put "on" }'
+        ':if ($allEnabled) do={ :put "off" } else={ :put "on" } '
+        '}'
     )
 
     if DRY_RUN:

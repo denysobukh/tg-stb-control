@@ -8,7 +8,7 @@ The bot runs on a VPS, receives Telegram updates through an HTTPS webhook, and e
 
 - `/tvon` turns the TV on and clears any pending auto-off scheduler.
 - `/tvoff` turns the TV off and clears any pending auto-off scheduler.
-- `/status` reads firewall rule state and the pending auto-off scheduler.
+- `/status` reads the STB address-list entry state and the pending auto-off scheduler.
 - `/timer30`, `/timer60`, etc. turns the TV on and schedules it to turn off later.
 - Reply keyboard buttons are shown for `TV On`, `TV Off`, `Status`, `5 min`, `15 min`, `30 min`, `45 min`, `60 min`, `90 min`, and `Help`.
 - Allowed Telegram chat IDs are enforced.
@@ -24,13 +24,13 @@ The bot expects these RouterOS scripts to exist:
 /system script run stboff
 ```
 
-Status is inferred from firewall filter rules with:
+Status is inferred from firewall address-list entries with:
 
 ```routeros
 comment="block-stb"
 ```
 
-If all matching rules are enabled, the TV is treated as off. If any matching rule is disabled, the TV is treated as on.
+If all matching entries are enabled, the TV is treated as off. If any matching entry is disabled, the TV is treated as on.
 
 Use a dedicated low-privilege MikroTik user for SSH access. The VPS should reach MikroTik over a private path when possible, such as WireGuard or a private network.
 
