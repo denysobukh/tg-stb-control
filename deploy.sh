@@ -6,13 +6,24 @@ SERVICE="tg-stb-control"
 APP_USER="tg-stb-control"
 APP_GROUP="tg-stb-control"
 
+APP_PARENT="$(dirname "$APP")"
+APP_NAME="$(basename "$APP")"
+BACKUP="$APP_PARENT/${APP_NAME}.backup.$(date +%Y%m%d-%H%M%S)"
+
+cd "$APP_PARENT"
+
+echo "==> Creating backup: $BACKUP"
+sudo rsync -aH --numeric-ids \
+  "$APP_NAME/" \
+  "$BACKUP/"
+
+echo "==> Ensuring ownership"
+sudo chown -R "$APP_USER:$APP_GROUP" "$APP"
+
 cd "$APP"
 
 echo "==> Pulling latest code"
 sudo -u "$APP_USER" git pull --ff-only
-
-echo "==> Ensuring ownership"
-sudo chown -R "$APP_USER:$APP_GROUP" "$APP"
 
 echo "==> Ensuring virtualenv exists"
 if [ ! -x "$APP/.venv/bin/python" ]; then
@@ -26,9 +37,11 @@ sudo -u "$APP_USER" "$APP/.venv/bin/python" -m pip install -r "$APP/requirements
 echo "==> Checking server-only secrets"
 if [ ! -f "$APP/.env" ]; then
   echo "ERROR: $APP/.env does not exist"
+  echo "Backup was created at: $BACKUP"
   exit 1
 fi
 
+echo "==> Hardening permissions"
 sudo chown "$APP_USER:$APP_GROUP" "$APP/.env"
 sudo chmod 600 "$APP/.env"
 
@@ -43,3 +56,6 @@ sudo systemctl restart "$SERVICE"
 
 echo "==> Service status"
 sudo systemctl status "$SERVICE" --no-pager
+
+echo "==> Deploy completed"
+echo "Backup: $BACKUP"
